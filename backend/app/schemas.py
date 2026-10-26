@@ -37,6 +37,7 @@ class WeightItem(BaseModel):
     symbol: str
     weight: float
     market_value: float
+    volatility: float | None = None  # annualized, base currency; used for risk contribution
 
 
 class SectorExposure(BaseModel):

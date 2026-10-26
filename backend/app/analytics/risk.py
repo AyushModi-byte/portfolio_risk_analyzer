@@ -28,6 +28,22 @@ def sharpe_ratio(returns: pd.Series, risk_free: float, trading_days: int = 252) 
     return float((returns.mean() - daily_rf) / std * np.sqrt(trading_days))
 
 
+def risk_contribution(weights: pd.Series, vols: pd.Series, corr: pd.DataFrame) -> pd.Series:
+    """Share of portfolio variance from each holding: w_i * (Sigma w)_i / (w' Sigma w).
+
+    Sigma_ij = corr_ij * vol_i * vol_j, using current weights. The shares sum to 1.
+    """
+    names = list(weights.index)
+    v = vols.reindex(names).to_numpy()
+    sigma = corr.reindex(index=names, columns=names).to_numpy() * np.outer(v, v)
+    w = weights.to_numpy()
+    marginal = sigma @ w
+    total = float(w @ marginal)
+    if total <= 0:
+        raise ValueError("Portfolio variance is zero; risk contribution is undefined.")
+    return pd.Series(w * marginal / total, index=names)
+
+
 def historical_var(returns: pd.Series, confidence: float = 0.95) -> float:
     """1-day historical VaR as a positive loss fraction."""
     return float(-np.percentile(returns, (1 - confidence) * 100))

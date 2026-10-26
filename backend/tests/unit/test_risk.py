@@ -58,3 +58,28 @@ def test_var_matches_numpy_percentile() -> None:
     rng = np.random.default_rng(0)
     r = pd.Series(rng.normal(0, 0.01, 500))
     assert risk.historical_var(r) == pytest.approx(-np.percentile(r, 5), abs=1e-12)
+
+
+def _corr(rho: float) -> pd.DataFrame:
+    return pd.DataFrame([[1.0, rho], [rho, 1.0]], index=["A", "B"], columns=["A", "B"])
+
+
+def test_risk_contribution_uncorrelated() -> None:
+    w = pd.Series({"A": 0.5, "B": 0.5})
+    rc = risk.risk_contribution(w, pd.Series({"A": 0.2, "B": 0.1}), _corr(0.0))
+    assert rc["A"] == pytest.approx(0.8, abs=1e-6)
+    assert rc["B"] == pytest.approx(0.2, abs=1e-6)
+
+
+def test_risk_contribution_perfectly_correlated() -> None:
+    w = pd.Series({"A": 0.5, "B": 0.5})
+    rc = risk.risk_contribution(w, pd.Series({"A": 0.2, "B": 0.1}), _corr(1.0))
+    assert rc["A"] == pytest.approx(2 / 3, abs=1e-6)
+    assert rc["B"] == pytest.approx(1 / 3, abs=1e-6)
+    assert rc.sum() == pytest.approx(1.0, abs=1e-12)
+
+
+def test_risk_contribution_zero_variance_raises() -> None:
+    w = pd.Series({"A": 0.5, "B": 0.5})
+    with pytest.raises(ValueError):
+        risk.risk_contribution(w, pd.Series({"A": 0.0, "B": 0.0}), _corr(0.0))

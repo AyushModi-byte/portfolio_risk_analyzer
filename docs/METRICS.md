@@ -49,6 +49,12 @@ $$w_i = \frac{MV_i}{\sum_j MV_j}, \qquad HHI = \sum_i w_i^2, \qquad N_{eff} = \f
 
 Sector exposure is the sum of w_i over the holdings in each sector.
 
+**Risk contribution** (used by the chat agent), with Sigma the covariance matrix built from each holding's annualized volatility and the correlation matrix, at current weights:
+
+$$RC_i = rac{w_i\,(\Sigma w)_i}{w^{	op}\Sigma w}, \qquad \sum_i RC_i = 1$$
+
+It is a share of variance at today's weights and can differ slightly from the realized buy-and-hold volatility above.
+
 ## Validation plan
 
 Align the periods and risk-free rate with the reference before comparing, and record any remaining gap in docs/VALIDATION.md.
@@ -69,3 +75,5 @@ Align the periods and risk-free rate with the reference before comparing, and re
 - Price doubles then halves: max drawdown -50%.
 - Two equal-value stocks: weights 0.5 each, HHI 0.5, effective N 2.
 - Portfolio identical to the benchmark: beta 1.
+- Two holdings, weights 0.5 each, volatilities 0.2 and 0.1, correlation 0: risk contributions 0.8 and 0.2.
+- Same, correlation 1: risk contributions 2/3 and 1/3.

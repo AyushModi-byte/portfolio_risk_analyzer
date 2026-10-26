@@ -30,3 +30,30 @@ def test_drawdown_series_values_and_recovery() -> None:
 
 def test_monotonic_rise_never_draws_down() -> None:
     assert dd.max_drawdown(series(1, 2, 3, 4)) == 0.0
+
+
+def test_drawdown_periods_closed_and_open_episodes() -> None:
+    s = series(100, 110, 99, 120, 90, 100)
+    eps = dd.drawdown_periods(s, n=5)
+    assert len(eps) == 2
+    deepest, shallow = eps
+    assert deepest["depth"] == pytest.approx(90 / 120 - 1, abs=1e-9)
+    assert deepest["peak_date"] == "2024-01-04"
+    assert deepest["trough_date"] == "2024-01-05"
+    assert deepest["recovery_date"] is None
+    assert deepest["days_to_recover"] is None
+    assert shallow["depth"] == pytest.approx(-0.10, abs=1e-9)
+    assert shallow["peak_date"] == "2024-01-02"
+    assert shallow["recovery_date"] == "2024-01-04"
+    assert shallow["days_peak_to_trough"] == 1
+    assert shallow["days_to_recover"] == 1
+
+
+def test_drawdown_periods_limit_and_none() -> None:
+    assert dd.drawdown_periods(series(1, 2, 3)) == []
+    assert len(dd.drawdown_periods(series(100, 110, 99, 120, 90, 100), n=1)) == 1
+
+
+def test_episodes_from_drawdown_matches_periods() -> None:
+    s = series(100, 110, 99, 120, 90, 100)
+    assert dd.episodes_from_drawdown(dd.drawdown_series(s), 5) == dd.drawdown_periods(s, 5)

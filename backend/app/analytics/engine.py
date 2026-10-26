@@ -139,13 +139,21 @@ def analyze(
         top5_concentration=conc.top_n_concentration(w, 5),
     )
 
-    corr = base_prices.pct_change().dropna().corr()
+    stock_returns = base_prices.pct_change().dropna()
+    corr = stock_returns.corr()
+    stock_vol = stock_returns.std(ddof=1) * (td**0.5)
+    vol_by_symbol = {by_ticker[t].symbol: float(v) for t, v in stock_vol.items()}
     corr_syms = [by_ticker[t].symbol for t in corr.columns]
 
     return AnalysisResult(
         summary=summary,
         weights=[
-            WeightItem(symbol=s, weight=float(w[s]), market_value=float(mv[s]))
+            WeightItem(
+                symbol=s,
+                weight=float(w[s]),
+                market_value=float(mv[s]),
+                volatility=vol_by_symbol.get(s),
+            )
             for s in w.sort_values(ascending=False).index
         ],
         sector_exposure=[SectorExposure(sector=s, weight=float(x)) for s, x in sec_w.items()],
