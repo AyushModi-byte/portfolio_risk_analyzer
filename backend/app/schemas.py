@@ -78,3 +78,17 @@ class AnalysisResult(BaseModel):
     correlation: CorrelationMatrix
     warnings: list[str] = Field(default_factory=list)
     disclaimer: str = DISCLAIMER
+
+
+class AnalyzeRequest(BaseModel):
+    holdings: list[Holding] = Field(min_length=1)
+    base_currency: Currency = "INR"
+    benchmark: str | None = Field(default=None, pattern=r"^[A-Za-z0-9^.=\-]{1,20}$")
+    lookback_years: int = Field(default=2, ge=1, le=5)
+
+
+class SampleInfo(BaseModel):
+    name: str
+    base_currency: Currency
+    benchmark: str
+    holdings: list[Holding]
