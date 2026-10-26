@@ -38,6 +38,16 @@ The browser talks only to the backend; the agent reads results from the analytic
 | POST | /api/insights | analysis result | list of validated insights |
 | POST | /api/chat | analysis result, message history | answer and the tool calls used |
 
+### API behaviour
+
+- **Errors:** every error is JSON `{"error": "<slug>", "detail": "<message>"}`. Slugs include `validation_error` (422), `unsupported_media_type` (415), `payload_too_large` (413), `bad_request` (400), `not_implemented` (501). Responses carry an `X-Request-ID` header (a valid incoming one is echoed).
+- **POST /api/parse** takes a multipart `file` (and optional `mapping`, a JSON object of canonical field to column name, used after a mapping request). Returns `status` (`ok` or `needs_mapping`), `broker` (a hint from header names, or null), `holdings`, `columns`, `detected`, `missing`, `warnings` and `unresolved_symbols`. Only .csv, .xlsx and .json are accepted; .xlsm and .xls get a message to save as .xlsx. Files over `MAX_UPLOAD_MB` give 413, more than `MAX_ROWS` rows give 413, and a missing `Content-Length` gives 411. Uploads are read in memory only.
+- **POST /api/analyze** takes `holdings`, `base_currency` (INR or USD), optional `benchmark` and `lookback_years` (1 to 5, default 2). With no benchmark, ^NSEI is used when most value is Indian, otherwise ^GSPC. Unresolved symbols are excluded and listed in `warnings`; if none resolve the call fails with 422.
+- **Price fallback:** price downloads go through an in-memory TTL cache, then a disk cache, then yfinance. After the first failed download in a request, the remaining tickers use the bundled snapshot directly, and the result carries a "Live prices unavailable" warning.
+- **GET /api/samples** returns the bundled portfolios with holdings, base currency and benchmark, ready to post to /api/analyze.
+- **POST /api/insights** and **POST /api/chat** return 501 until the agent phase.
+- **Logging:** one JSON line per request (request id, method, path, status, duration). File contents, symbols and names are never logged; unexpected errors log only the exception type.
+
 ## Data models
 
 - **Holding:** symbol, name, quantity, average buy price, currency, exchange.
