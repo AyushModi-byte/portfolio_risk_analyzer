@@ -6,7 +6,11 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Later files win: a backend/.env overrides the repo-root .env, and the process environment
+    # overrides both.
+    model_config = SettingsConfigDict(
+        env_file=(BACKEND_DIR.parent / ".env", BACKEND_DIR / ".env"), extra="ignore"
+    )
 
     gemini_api_key: str = ""
     gemini_model: str = ""
