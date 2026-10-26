@@ -6,6 +6,7 @@ import pandas as pd
 import yfinance as yf
 
 from app.config import settings
+from app.services.cache import TTLCache
 from app.services.prices import is_offline
 
 UNKNOWN = "Unknown"
@@ -28,10 +29,20 @@ def _from_yfinance(ticker: str) -> str | None:
     return str(sector) if sector else None
 
 
-def get_sector(ticker: str) -> str:
-    sector = None if is_offline() else _from_yfinance(ticker)
-    return sector or _sector_map().get(ticker.upper(), UNKNOWN)
+_memory: TTLCache[str] = TTLCache(settings.price_ttl_seconds * 4, maxsize=1024)
 
 
-def get_sectors(tickers: list[str]) -> dict[str, str]:
-    return {t: get_sector(t) for t in tickers}
+def get_sector(ticker: str, allow_network: bool = True) -> str:
+    if allow_network and not is_offline():
+        cached = _memory.get(ticker)
+        if cached is not None:
+            return cached
+        live = _from_yfinance(ticker)
+        if live:
+            _memory.set(ticker, live)
+            return live
+    return _sector_map().get(ticker.upper(), UNKNOWN)
+
+
+def get_sectors(tickers: list[str], allow_network: bool = True) -> dict[str, str]:
+    return {t: get_sector(t, allow_network) for t in tickers}

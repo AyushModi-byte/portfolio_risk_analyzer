@@ -162,8 +162,11 @@ def test_sector_prefers_yfinance_online(tmp_path: Path, monkeypatch: pytest.Monk
         sectors.yf, "Ticker", lambda t: SimpleNamespace(info={"sector": "Technology"})
     )
     assert sectors.get_sector("AAA") == "Technology"
+    assert sectors.get_sector("AAA") == "Technology"  # served from the memory cache
+    sectors._memory.clear()
     monkeypatch.setattr(sectors.yf, "Ticker", lambda t: SimpleNamespace(info={}))
     assert sectors.get_sector("AAA") == "Unknown"
+    sectors._memory.clear()
 
     def boom(t: str) -> None:
         raise RuntimeError("x")

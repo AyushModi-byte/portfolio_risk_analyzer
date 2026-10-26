@@ -4,15 +4,19 @@ import os
 import re
 import time
 from pathlib import Path
+from typing import NamedTuple
 
 import pandas as pd
 import yfinance as yf
 
 from app.config import settings
+from app.services.cache import TTLCache
 
 CACHE_TTL_SECONDS = 12 * 3600
 RETRIES = 3
 BACKOFF_SECONDS = 1.5
+
+_memory: TTLCache[pd.Series] = TTLCache(settings.price_ttl_seconds, maxsize=512)
 
 
 def filename(ticker: str) -> str:
@@ -55,24 +59,43 @@ def is_offline() -> bool:
     return settings.offline or os.environ.get("OFFLINE") == "1"
 
 
-def get_series(ticker: str, years: int = 2) -> tuple[pd.Series | None, str | None]:
-    """Return (series, warning). Order: fresh cache, network, snapshot."""
+class Fetched(NamedTuple):
+    series: pd.Series | None
+    warning: str | None
+    live_failed: bool  # a live download was allowed and failed
+
+
+def fetch(ticker: str, years: int = 2, allow_network: bool = True) -> Fetched:
+    """Order: memory TTL cache, fresh disk cache, network, bundled snapshot."""
+    network = allow_network and not is_offline()
+    key = (ticker, years)
     cache = settings.cache_dir / filename(ticker)
-    if not is_offline():
+    if network:
+        hit = _memory.get(key)
+        if hit is not None:
+            return Fetched(hit.copy(), None, False)
         if cache.exists() and time.time() - cache.stat().st_mtime < CACHE_TTL_SECONDS:
             cached = read_series(cache)
             if cached is not None:
-                return _window(cached, years), None
+                series = _window(cached, years)
+                _memory.set(key, series)
+                return Fetched(series.copy(), None, False)
         live = download(ticker, years)
         if live is not None:
             write_series(cache, live)
-            return live, None
+            _memory.set(key, live)
+            return Fetched(live.copy(), None, False)
     snap = read_series(settings.snapshot_dir / filename(ticker))
     if snap is not None:
-        return _window(
-            snap, years
-        ), f"Using bundled price snapshot for {ticker} (live data unavailable)."
-    return None, f"No price data available for {ticker}."
+        warning = f"Using bundled price snapshot for {ticker} (live data unavailable)."
+        return Fetched(_window(snap, years), warning, network)
+    return Fetched(None, f"No price data available for {ticker}.", network)
+
+
+def get_series(ticker: str, years: int = 2) -> tuple[pd.Series | None, str | None]:
+    """Return (series, warning)."""
+    f = fetch(ticker, years)
+    return f.series, f.warning
 
 
 def _window(series: pd.Series, years: int) -> pd.Series:
@@ -80,14 +103,29 @@ def _window(series: pd.Series, years: int) -> pd.Series:
     return series[series.index >= start]
 
 
-def get_prices(tickers: list[str], years: int = 2) -> tuple[pd.DataFrame, list[str]]:
-    """Adjusted closes, one column per ticker that has data, plus warnings."""
+def fetch_many(tickers: list[str], years: int = 2) -> tuple[pd.DataFrame, list[str], bool]:
+    """Adjusted closes, one column per ticker with data, warnings, and whether live data failed.
+
+    After the first failed live download the rest are served from the snapshot without retrying,
+    so a yfinance outage costs one retry cycle, not one per ticker.
+    """
     columns: dict[str, pd.Series] = {}
     warnings: list[str] = []
+    allow_network = True
+    live_failed = False
     for ticker in tickers:
-        series, warning = get_series(ticker, years)
-        if warning:
-            warnings.append(warning)
-        if series is not None:
-            columns[ticker] = series
-    return pd.DataFrame(columns).sort_index(), warnings
+        f = fetch(ticker, years, allow_network)
+        if f.live_failed:
+            allow_network = False
+            live_failed = True
+        if f.warning:
+            warnings.append(f.warning)
+        if f.series is not None:
+            columns[ticker] = f.series
+    return pd.DataFrame(columns).sort_index(), warnings, live_failed
+
+
+def get_prices(tickers: list[str], years: int = 2) -> tuple[pd.DataFrame, list[str]]:
+    """Adjusted closes, one column per ticker that has data, plus warnings."""
+    df, warnings, _ = fetch_many(tickers, years)
+    return df, warnings

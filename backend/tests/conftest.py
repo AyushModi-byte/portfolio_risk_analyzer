@@ -1,9 +1,19 @@
+from pathlib import Path
+
 import pytest
 
 from app.config import settings
+from app.services import prices, sectors
 
 
 @pytest.fixture(autouse=True)
-def offline(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every test runs with the network disabled; services fall back to the snapshot."""
+def offline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Every test runs with the network disabled and isolated caches.
+
+    Services fall back to the bundled snapshot; the disk cache goes to a temp dir.
+    """
     monkeypatch.setattr(settings, "offline", True)
+    monkeypatch.setattr(settings, "cache_dir", tmp_path / "price_cache")
+    prices._memory.clear()
+    sectors._memory.clear()
+    sectors._sector_map.cache_clear()
