@@ -41,12 +41,29 @@ MAX_NAME_LEN = 120
 ALLOWED_EXTENSIONS = (".csv", ".xlsx", ".json")
 
 
+# Optional hint only: normalised header sets that identify a broker export. Extend as needed.
+BROKER_SIGNATURES: dict[str, set[str]] = {
+    "Zerodha": {"instrument", "qty", "avg cost"},
+    "Groww": {"stock name", "quantity", "average buy price"},
+    "Upstox": {"scrip", "qty", "avg price"},
+}
+EXTENSION_HINTS = {
+    ".xlsm": "Macro-enabled workbooks (.xlsm) are not accepted. Save the file as .xlsx.",
+    ".xls": "Legacy .xls files are not supported. Save the file as .xlsx or .csv.",
+}
+
+
 class ParseError(ValueError):
     """The file is unusable (bad type, too big, unreadable, too many rows)."""
+
+    def __init__(self, message: str, status_code: int = 400) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class ParseResult(BaseModel):
     status: Literal["ok", "needs_mapping"]
+    broker: str | None = None
     holdings: list[Holding] = Field(default_factory=list)
     columns: list[str] = Field(default_factory=list)  # offered to the user when mapping is needed
     detected: dict[str, str] = Field(default_factory=dict)  # canonical field -> file column
@@ -74,9 +91,11 @@ def detect_columns(headers: list[object]) -> dict[str, str]:
 def _read_raw(filename: str, content: bytes) -> pd.DataFrame:
     name = filename.lower()
     if not name.endswith(ALLOWED_EXTENSIONS):
-        raise ParseError("Unsupported file type. Upload a .csv, .xlsx or .json file.")
+        ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+        hint = EXTENSION_HINTS.get(ext, "Upload a .csv, .xlsx or .json file.")
+        raise ParseError(f"Unsupported file type. {hint}", status_code=415)
     if len(content) > settings.max_upload_mb * 1024 * 1024:
-        raise ParseError(f"File is larger than {settings.max_upload_mb} MB.")
+        raise ParseError(f"File is larger than {settings.max_upload_mb} MB.", status_code=413)
     if not content.strip():
         raise ParseError("The file is empty.")
     try:
@@ -181,6 +200,14 @@ def build_holdings(body: pd.DataFrame, cols: dict[str, str]) -> tuple[list[Holdi
     return holdings, warnings
 
 
+def detect_broker(headers: list[str]) -> str | None:
+    normed = {_norm(h) for h in headers}
+    for broker, signature in BROKER_SIGNATURES.items():
+        if signature <= normed:
+            return broker
+    return None
+
+
 def parse_holdings(
     filename: str, content: bytes, mapping: dict[str, str] | None = None
 ) -> ParseResult:
@@ -191,7 +218,7 @@ def parse_holdings(
         detected = {**detected, **{k: v for k, v in mapping.items() if k in ALIASES}}
     body = body.dropna(how="all")
     if len(body) > settings.max_rows:
-        raise ParseError(f"File has more than {settings.max_rows} rows.")
+        raise ParseError(f"File has more than {settings.max_rows} rows.", status_code=413)
 
     missing = [f for f in REQUIRED if f not in detected or detected[f] not in body.columns]
     if missing:
@@ -205,4 +232,10 @@ def parse_holdings(
     holdings, warnings = build_holdings(body, detected)
     if not holdings:
         raise ParseError("No valid holdings found in the file.")
-    return ParseResult(status="ok", holdings=holdings, detected=detected, warnings=warnings)
+    return ParseResult(
+        status="ok",
+        broker=detect_broker([str(c) for c in body.columns]),
+        holdings=holdings,
+        detected=detected,
+        warnings=warnings,
+    )
