@@ -5,11 +5,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.agent.llm import AIUnavailableError, LLMError, LLMRateLimitError
 from app.services.parsers import ParseError
 from app.services.pipeline import PipelineError
 
 # Pinned because http.HTTPStatus phrases differ between Python versions.
-ERROR_SLUGS = {413: "payload_too_large", 415: "unsupported_media_type", 422: "unprocessable"}
+ERROR_SLUGS = {
+    413: "payload_too_large",
+    415: "unsupported_media_type",
+    422: "unprocessable",
+    429: "too_many_requests",
+}
 
 
 def error_response(status_code: int, detail: str, error: str | None = None) -> JSONResponse:
@@ -39,6 +45,18 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ParseError)
     async def parse_error(_: Request, exc: ParseError) -> JSONResponse:
         return error_response(exc.status_code, str(exc))
+
+    @app.exception_handler(AIUnavailableError)
+    async def ai_unavailable(_: Request, exc: AIUnavailableError) -> JSONResponse:
+        return error_response(503, str(exc), "ai_unavailable")
+
+    @app.exception_handler(LLMRateLimitError)
+    async def ai_rate_limited(_: Request, exc: LLMRateLimitError) -> JSONResponse:
+        return error_response(429, str(exc), "ai_rate_limited")
+
+    @app.exception_handler(LLMError)
+    async def ai_error(_: Request, exc: LLMError) -> JSONResponse:
+        return error_response(502, str(exc), "ai_error")
 
     @app.exception_handler(PipelineError)
     async def pipeline_error(_: Request, exc: PipelineError) -> JSONResponse:

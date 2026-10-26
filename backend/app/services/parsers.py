@@ -68,6 +68,7 @@ class ParseResult(BaseModel):
     columns: list[str] = Field(default_factory=list)  # offered to the user when mapping is needed
     detected: dict[str, str] = Field(default_factory=dict)  # canonical field -> file column
     missing: list[str] = Field(default_factory=list)
+    sample_rows: list[dict[str, str]] = Field(default_factory=list)  # first rows, for mapping help
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -200,6 +201,13 @@ def build_holdings(body: pd.DataFrame, cols: dict[str, str]) -> tuple[list[Holdi
     return holdings, warnings
 
 
+def _sample_rows(body: pd.DataFrame, n: int = 3, width: int = 60) -> list[dict[str, str]]:
+    rows = []
+    for _, row in body.head(n).iterrows():
+        rows.append({str(c): (_clean_text(row[c], width) or "") for c in body.columns})
+    return rows
+
+
 def detect_broker(headers: list[str]) -> str | None:
     normed = {_norm(h) for h in headers}
     for broker, signature in BROKER_SIGNATURES.items():
@@ -227,6 +235,7 @@ def parse_holdings(
             columns=[str(c) for c in body.columns],
             detected={k: v for k, v in detected.items() if v in body.columns},
             missing=missing,
+            sample_rows=_sample_rows(body),
             warnings=["Could not detect all required columns; please map them."],
         )
     holdings, warnings = build_holdings(body, detected)

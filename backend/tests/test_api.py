@@ -60,13 +60,6 @@ def test_error_shape_for_unknown_route(client: TestClient) -> None:
     assert r.json()["error"] == "not_found"
 
 
-@pytest.mark.parametrize("path", ["/api/insights", "/api/chat"])
-def test_stubs_return_501(client: TestClient, path: str) -> None:
-    r = client.post(path, json={})
-    assert r.status_code == 501
-    assert r.json()["error"] == "not_implemented"
-
-
 def test_request_id_is_generated_and_echoed(client: TestClient) -> None:
     assert len(client.get("/health").headers["x-request-id"]) == 32
     assert (

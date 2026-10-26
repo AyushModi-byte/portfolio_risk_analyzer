@@ -13,6 +13,7 @@ def offline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     Services fall back to the bundled snapshot; the disk cache goes to a temp dir.
     """
     monkeypatch.setattr(settings, "offline", True)
+    monkeypatch.setattr(settings, "gemini_api_key", "")  # tests never use a real key
     monkeypatch.setattr(settings, "cache_dir", tmp_path / "price_cache")
     prices._memory.clear()
     sectors._memory.clear()
