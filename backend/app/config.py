@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:5173"
     max_upload_mb: int = 5
     max_rows: int = 500
+    git_sha: str = "unknown"
+    price_ttl_seconds: int = 900
 
     trading_days: int = 252
     risk_free_inr: float = 0.07
@@ -25,6 +27,10 @@ class Settings(BaseSettings):
     cache_dir: Path = BACKEND_DIR / "data" / "price_cache"
     sector_map_path: Path = BACKEND_DIR / "data" / "sector_map.csv"
     offline: bool = False  # when true, services never touch the network
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 
 
 settings = Settings()
