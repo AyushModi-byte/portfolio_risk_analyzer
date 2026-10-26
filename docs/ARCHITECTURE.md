@@ -36,7 +36,8 @@ The browser talks only to the backend; the agent reads results from the analytic
 | POST | /api/parse | file (CSV, Excel, JSON) | detected broker, holdings, warnings, unresolved symbols, or a request for column mapping |
 | POST | /api/analyze | holdings, base currency, benchmark, lookback years | full analysis result |
 | POST | /api/insights | analysis result | list of validated insights |
-| POST | /api/chat | analysis result, message history | answer and the tool calls used |
+| POST | /api/chat | analysis result, message history, optional original analyze request | answer and the tool calls used |
+| POST | /api/mapping/suggest | column headers, up to 3 sample rows | suggested column mapping for the user to confirm |
 
 ### API behaviour
 
@@ -45,7 +46,9 @@ The browser talks only to the backend; the agent reads results from the analytic
 - **POST /api/analyze** takes `holdings`, `base_currency` (INR or USD), optional `benchmark` and `lookback_years` (1 to 5, default 2). With no benchmark, ^NSEI is used when most value is Indian, otherwise ^GSPC. Unresolved symbols are excluded and listed in `warnings`; if none resolve the call fails with 422.
 - **Price fallback:** price downloads go through an in-memory TTL cache, then a disk cache, then yfinance. After the first failed download in a request, the remaining tickers use the bundled snapshot directly, and the result carries a "Live prices unavailable" warning.
 - **GET /api/samples** returns the bundled portfolios with holdings, base currency and benchmark, ready to post to /api/analyze.
-- **POST /api/insights** and **POST /api/chat** return 501 until the agent phase.
+- **POST /api/insights** takes the analysis result and returns 4 to 6 insights, each with the metric keys it cites, `source` (`llm` or `template`) and the disclaimer. Every number in model text is checked against the cited metrics within rounding; a failed check regenerates once, then template insights built in code are returned. With no `GEMINI_API_KEY` the template insights are returned directly.
+- **POST /api/chat** takes `analysis`, `messages` (up to 20, last one from the user, 2000 characters each) and optionally `request`, the analyze request that produced `analysis`; only the what-if tool needs it. It returns `answer`, `tool_calls` (name, args, output), `verified` and the disclaimer. Without a key it returns 503 `ai_unavailable`; a provider rate limit returns 429 `ai_rate_limited`; other model failures return 502 `ai_error`.
+- **POST /api/mapping/suggest** takes `headers` and `sample_rows` (the parse response returns `sample_rows` when it asks for mapping) and returns a validated `mapping` or `null`. Same 503 behaviour without a key.
 - **Logging:** one JSON line per request (request id, method, path, status, duration). File contents, symbols and names are never logged; unexpected errors log only the exception type.
 
 ## Data models
@@ -53,6 +56,18 @@ The browser talks only to the backend; the agent reads results from the analytic
 - **Holding:** symbol, name, quantity, average buy price, currency, exchange.
 - **ResolvedHolding:** Holding plus Yahoo ticker, sector, latest price, market value in base currency.
 - **AnalysisResult:** summary (value, invested, P&L, P&L %), weights, sector exposure, risk metrics, drawdown series, correlation matrix, warnings, disclaimer.
+
+## AI agent
+
+Three LangGraph flows in `backend/app/agent`, all calling the model through the small `LLM` interface in `llm.py` (Gemini in production, `FakeLLM` in tests).
+
+- **mapping_assistant:** headers and 3 sample rows in, JSON mapping out. Each value must be an exact header, symbol and quantity are required, and one header cannot serve two fields. One retry, then no suggestion. The user confirms it in the UI.
+- **insight_writer:** generate, validate, regenerate once, then fall back to template insights. The validator rejects unknown metric keys, advice wording and any number that does not match a cited metric within rounding (a percentage may be written as a fraction or with a % sign).
+- **qa_agent:** guard, then a tool-calling loop capped at 5 tool calls, then a check. Advice requests are declined before the model is called. The final answer must contain only numbers found in the tool outputs and no advice; otherwise it is repaired once and then replaced by a safe message with `verified` false.
+
+Fixed tools: `get_summary`, `get_top_holdings(n)`, `get_sector_exposure`, `get_risk_metrics`, `get_drawdown_periods(n)`, `get_correlations(symbol?)`, `risk_contribution(symbol?)`, `what_if_remove(symbol)`. Arguments are small integers or a symbol; nothing is executed or read from disk. Tool outputs carry fractions with matching `_percent` fields so the model never converts. `what_if_remove` re-runs the normal analysis pipeline with the benchmark pinned to the original one.
+
+Holding symbols, headers and sample rows are untrusted: they are fenced in prompts, never followed as instructions, and known symbols are excluded from the advice check so that echoing a hostile symbol is treated as data. Prompts and answers are never logged; logs carry tool names and outcomes only.
 
 ## Design decisions
 
@@ -78,13 +93,13 @@ portfolio-risk-analyzer/
       routers/      health.py  parse.py  analyze.py  chat.py
       services/     parsers.py  tickers.py  prices.py  fx.py  sectors.py
       analytics/    returns.py  risk.py  drawdown.py  concentration.py  engine.py
-      agent/        graph.py  tools.py  prompts.py  llm.py
+      agent/        graph.py  tools.py  prompts.py  llm.py  models.py  templates.py  validation.py
     data/
       sample_portfolios/   (india, us, mixed)
       price_snapshot/      (offline prices for tests and demo)
       sector_map.csv
     tests/
-      unit/  fixtures/  test_validation.py  evals/
+      unit/  agent/  fixtures/  test_validation.py  test_api.py  evals/questions.yaml
     requirements.txt  requirements-dev.txt  Dockerfile
   frontend/               (Vite, React, TypeScript)
   scripts/
