@@ -1,0 +1,30 @@
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    gemini_api_key: str = ""
+    gemini_model: str = ""
+    allowed_origins: str = "http://localhost:5173"
+    max_upload_mb: int = 5
+    max_rows: int = 500
+
+    trading_days: int = 252
+    risk_free_inr: float = 0.07
+    risk_free_usd: float = 0.04
+    default_lookback_years: int = 2
+    min_history_days: int = 60
+    max_ffill_days: int = 5
+
+    snapshot_dir: Path = BACKEND_DIR / "data" / "price_snapshot"
+    cache_dir: Path = BACKEND_DIR / "data" / "price_cache"
+    sector_map_path: Path = BACKEND_DIR / "data" / "sector_map.csv"
+    offline: bool = False  # when true, services never touch the network
+
+
+settings = Settings()
