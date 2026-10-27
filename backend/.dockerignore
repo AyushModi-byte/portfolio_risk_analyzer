@@ -1,0 +1,15 @@
+# Only app/ and data/ are copied, but keep the build context small and free of local state.
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+.env
+.env.*
+!.env.example
+data/price_cache/
+Dockerfile
+.dockerignore
