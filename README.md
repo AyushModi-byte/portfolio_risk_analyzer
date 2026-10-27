@@ -16,6 +16,17 @@ uvicorn app.main:app --reload --port 8000
 
 Open http://localhost:8000/docs. Run the tests with `pytest -q --cov=app` and lint with `ruff check . && ruff format --check .`.
 
+## Run the frontend
+
+```bash
+cd frontend
+cp .env.example .env       # sets VITE_API_URL, the backend URL (no default; the app refuses to start without it)
+npm install
+npm run dev                # http://localhost:5173
+```
+
+The backend must allow the frontend's origin in `ALLOWED_ORIGINS` (default `http://localhost:5173`). Checks: `npm run lint && npm run test && npm run build`. Charts use the small Plotly basic bundle (bar and area), loaded on demand; the correlation heatmap is an accessible HTML table, so the larger heatmap bundle is not needed. For Vercel, set `VITE_API_URL` in the project settings.
+
 ## AI features
 
 The AI features need a Google AI Studio key in `GEMINI_API_KEY`. Without one the dashboard still works: insights fall back to template text built in code, and chat and column-mapping suggestions report "AI unavailable".
