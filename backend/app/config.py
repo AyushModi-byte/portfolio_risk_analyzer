@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     max_upload_mb: int = 5
     max_rows: int = 500
     git_sha: str = "unknown"
+
+    # Optional Langfuse tracing for the agent; off unless both keys are set (app/agent/tracing.py).
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = ""
     price_ttl_seconds: int = 900
 
     # Abuse protection for the AI endpoints (see app/ratelimit.py).

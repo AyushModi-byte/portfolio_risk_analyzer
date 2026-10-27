@@ -15,6 +15,7 @@ from app.agent.llm import LLM, LLMError, LLMResponse, Message
 from app.agent.models import ChatResult, Insight, InsightsResult, MappingResult, ToolRecord
 from app.agent.templates import template_insights
 from app.agent.tools import MAX_TOOL_CALLS, ToolContext, run_tool, tool_specs
+from app.agent.tracing import trace_config
 from app.agent.validation import (
     contains_advice,
     is_advice_request,
@@ -163,7 +164,9 @@ def write_insights(analysis: AnalysisResult, llm: LLM | None) -> InsightsResult:
             source="template",
             note="AI unavailable; showing template insights.",
         )
-    state: InsightState = build_insight_graph(llm, analysis).invoke({"attempt": 0})
+    state: InsightState = build_insight_graph(llm, analysis).invoke(
+        {"attempt": 0}, trace_config("insight_writer")
+    )
     if state.get("done"):
         return InsightsResult(insights=state["insights"], source="llm", attempts=state["attempt"])
     note = (
@@ -303,7 +306,7 @@ def answer_question(llm: LLM, ctx: ToolContext, history: list[tuple[str, str]]) 
     ]
     state: QAState = build_qa_graph(llm, ctx, question).invoke(
         {"messages": messages, "records": [], "used": 0, "repairs": 0},
-        {"recursion_limit": 40},
+        trace_config("qa_agent", {"recursion_limit": 40}),
     )
     return ChatResult(
         answer=state["answer"],
@@ -393,7 +396,9 @@ def build_mapping_graph(llm: LLM, headers: list[str], rows: list[dict[str, str]]
 
 def suggest_mapping(llm: LLM, headers: list[str], rows: list[dict[str, str]]) -> MappingResult:
     """Model-proposed column mapping, validated against the headers; the user confirms it."""
-    state: MappingState = build_mapping_graph(llm, headers, rows).invoke({"attempt": 0})
+    state: MappingState = build_mapping_graph(llm, headers, rows).invoke(
+        {"attempt": 0}, trace_config("mapping_assistant")
+    )
     if state.get("done"):
         return MappingResult(mapping=state["mapping"], source="llm")
     reason = "model call failed" if state.get("llm_failed") else "; ".join(state.get("errors", []))

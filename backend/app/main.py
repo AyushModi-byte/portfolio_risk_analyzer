@@ -67,6 +67,7 @@ def create_app() -> FastAPI:
             log_event(
                 "request",
                 method=request.method,
+                route=getattr(request.scope.get("route"), "path", "unmatched"),
                 path=request.url.path,
                 status=status,
                 duration_ms=round((time.perf_counter() - start) * 1000, 1),

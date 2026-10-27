@@ -400,7 +400,7 @@ def test_logs_have_timing_and_never_contain_uploaded_content(
     assert len(requests) == 6
     for rec in requests:
         fields = rec.fields  # type: ignore[attr-defined]
-        assert {"method", "path", "status", "duration_ms"} <= set(fields)
+        assert {"method", "route", "path", "status", "duration_ms"} <= set(fields)
         assert fields["duration_ms"] >= 0
 
 
@@ -413,6 +413,7 @@ def test_json_log_line_format(client: TestClient, caplog: pytest.LogCaptureFixtu
     line = json.loads(JsonFormatter().format(rec))
     assert line["event"] == "request"
     assert line["path"] == "/health"
+    assert line["route"] == "/health"
     assert line["status"] == 200
     assert "ts" in line and "level" in line
 
