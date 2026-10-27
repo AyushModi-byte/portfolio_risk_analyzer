@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     git_sha: str = "unknown"
     price_ttl_seconds: int = 900
 
+    # Abuse protection for the AI endpoints (see app/ratelimit.py).
+    ai_requests_per_minute: int = 6  # per client
+    ai_requests_per_day: int = 100  # per client
+    ai_model_calls_per_day: int = 500  # all clients together
+    trusted_proxy_hops: int = 1  # proxies in front of the app; 0 if exposed directly
+
     trading_days: int = 252
     risk_free_inr: float = 0.07
     risk_free_usd: float = 0.04

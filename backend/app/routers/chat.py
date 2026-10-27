@@ -8,6 +8,7 @@ from app.agent.llm import LLM, AIUnavailableError, get_llm
 from app.agent.models import ChatResult, InsightsResult, MappingResult
 from app.agent.tools import ToolContext
 from app.observability import log_event
+from app.ratelimit import ai_guard
 from app.schemas import AnalysisResult, AnalyzeRequest
 from app.services.pipeline import PipelineError
 
@@ -36,7 +37,7 @@ class MappingRequest(BaseModel):
     )
 
 
-@router.post("/insights", response_model=InsightsResult)
+@router.post("/insights", response_model=InsightsResult, dependencies=[Depends(ai_guard)])
 def insights(analysis: AnalysisResult, llm: LLMDep) -> InsightsResult:
     """Validated insights. Without a model key this returns template insights."""
     result = graph.write_insights(analysis, llm)
@@ -44,7 +45,7 @@ def insights(analysis: AnalysisResult, llm: LLMDep) -> InsightsResult:
     return result
 
 
-@router.post("/chat", response_model=ChatResult)
+@router.post("/chat", response_model=ChatResult, dependencies=[Depends(ai_guard)])
 def chat(req: ChatRequest, llm: LLMDep) -> ChatResult:
     if llm is None:
         raise AIUnavailableError("AI unavailable: no GEMINI_API_KEY is configured.")
@@ -61,7 +62,7 @@ def chat(req: ChatRequest, llm: LLMDep) -> ChatResult:
     return result
 
 
-@router.post("/mapping/suggest", response_model=MappingResult)
+@router.post("/mapping/suggest", response_model=MappingResult, dependencies=[Depends(ai_guard)])
 def suggest_mapping(req: MappingRequest, llm: LLMDep) -> MappingResult:
     """Ask the model to map unrecognised columns. The user confirms the result in the UI."""
     if llm is None:

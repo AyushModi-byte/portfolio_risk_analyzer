@@ -112,6 +112,10 @@ class GeminiLLM:
         return out
 
     def invoke(self, messages: list[Message], tools: list[ToolSpec] | None = None) -> LLMResponse:
+        from app.ratelimit import charge_model_call
+
+        if charge_model_call() is not None:
+            raise LLMRateLimitError("The daily AI budget is used up; try again tomorrow.")
         chat: Any = self._chat
         if tools:
             specs = [

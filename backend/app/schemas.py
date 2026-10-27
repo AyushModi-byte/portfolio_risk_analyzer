@@ -72,12 +72,12 @@ class CorrelationMatrix(BaseModel):
 
 class AnalysisResult(BaseModel):
     summary: Summary
-    weights: list[WeightItem]
-    sector_exposure: list[SectorExposure]
+    weights: list[WeightItem] = Field(max_length=500)
+    sector_exposure: list[SectorExposure] = Field(max_length=50)
     risk: RiskMetrics
-    drawdown_series: list[DrawdownPoint]
+    drawdown_series: list[DrawdownPoint] = Field(max_length=3000)
     correlation: CorrelationMatrix
-    warnings: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list, max_length=50)
     disclaimer: str = DISCLAIMER
 
 

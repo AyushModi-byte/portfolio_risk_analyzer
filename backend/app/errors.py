@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.agent.llm import AIUnavailableError, LLMError, LLMRateLimitError
+from app.ratelimit import RateLimitedError
 from app.services.parsers import ParseError
 from app.services.pipeline import PipelineError
 
@@ -18,7 +19,9 @@ ERROR_SLUGS = {
 }
 
 
-def error_response(status_code: int, detail: str, error: str | None = None) -> JSONResponse:
+def error_response(
+    status_code: int, detail: str, error: str | None = None, headers: dict[str, str] | None = None
+) -> JSONResponse:
     if error is None and status_code in ERROR_SLUGS:
         error = ERROR_SLUGS[status_code]
     if error is None:
@@ -26,7 +29,9 @@ def error_response(status_code: int, detail: str, error: str | None = None) -> J
             error = HTTPStatus(status_code).phrase.lower().replace(" ", "_").replace("-", "_")
         except ValueError:
             error = "error"
-    return JSONResponse(status_code=status_code, content={"error": error, "detail": detail})
+    return JSONResponse(
+        status_code=status_code, content={"error": error, "detail": detail}, headers=headers
+    )
 
 
 def install_error_handlers(app: FastAPI) -> None:
@@ -45,6 +50,12 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ParseError)
     async def parse_error(_: Request, exc: ParseError) -> JSONResponse:
         return error_response(exc.status_code, str(exc))
+
+    @app.exception_handler(RateLimitedError)
+    async def rate_limited(_: Request, exc: RateLimitedError) -> JSONResponse:
+        return error_response(
+            429, str(exc), "rate_limited", headers={"Retry-After": str(exc.retry_after)}
+        )
 
     @app.exception_handler(AIUnavailableError)
     async def ai_unavailable(_: Request, exc: AIUnavailableError) -> JSONResponse:
