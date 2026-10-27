@@ -1,0 +1,39 @@
+# Pings the deployed backend so the free Hugging Face Space does not go to sleep.
+# Setup: GitHub > Settings > Secrets and variables > Actions > Variables > BACKEND_URL
+#        = the Space's direct URL, for example https://username-space-name.hf.space
+# A failed run (red cross in the Actions tab, plus GitHub's failure email) means /health did
+# not return 200. GitHub may delay scheduled runs by several minutes; that is expected.
+name: Keep alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /health
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "::error::Repository variable BACKEND_URL is not set."
+            exit 1
+          fi
+          url="${BACKEND_URL%/}/health"
+          # A sleeping Space can take a minute to wake, so allow a long first response.
+          status=$(curl --silent --show-error --location --max-time 90 \
+            --retry 2 --retry-delay 15 --retry-all-errors \
+            --output response.json --write-out '%{http_code}' "$url") || status=000
+          echo "GET $url -> $status"
+          cat response.json 2>/dev/null || true
+          echo
+          if [ "$status" != "200" ]; then
+            echo "::error::Backend health check failed with HTTP $status"
+            exit 1
+          fi
