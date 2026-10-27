@@ -31,7 +31,7 @@ The browser talks only to the backend; the agent reads results from the analytic
 
 | Method | Path | Request | Response |
 | --- | --- | --- | --- |
-| GET | /health | none | status, version, git sha |
+| GET | /health | none | status, version, git sha, ai_available |
 | GET | /api/samples | none | list of sample portfolios |
 | POST | /api/parse | file (CSV, Excel, JSON) | detected broker, holdings, warnings, unresolved symbols, or a request for column mapping |
 | POST | /api/analyze | holdings, base currency, benchmark, lookback years | full analysis result |

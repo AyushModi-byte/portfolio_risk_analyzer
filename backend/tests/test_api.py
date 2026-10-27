@@ -37,7 +37,15 @@ def sample(client: TestClient, name: str) -> dict[str, Any]:
 def test_health(client: TestClient) -> None:
     body = client.get("/health").json()
     assert body["status"] == "ok"
-    assert {"version", "git_sha"} <= set(body)
+    assert {"version", "git_sha", "ai_available"} <= set(body)
+    assert body["ai_available"] is False  # tests run without a key
+
+
+def test_health_reports_ai_available_when_a_key_is_set(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "gemini_api_key", "k")
+    assert client.get("/health").json()["ai_available"] is True
 
 
 def test_docs_list_all_endpoints(client: TestClient) -> None:

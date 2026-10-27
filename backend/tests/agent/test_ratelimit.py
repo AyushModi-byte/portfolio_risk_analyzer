@@ -257,3 +257,9 @@ def test_oversized_fake_analysis_is_rejected(client: TestClient, analysis: Analy
     body["drawdown_series"] = body["drawdown_series"][:1] * 3001
     assert client.post("/api/insights", json=body).status_code == 422
     assert template_insights(analysis)  # the real analysis is still within the caps
+
+
+def test_browsers_can_read_retry_after(client: TestClient) -> None:
+    r = client.get("/health", headers={"Origin": "http://localhost:5173"})
+    exposed = r.headers["access-control-expose-headers"]
+    assert "Retry-After" in exposed and "X-Request-ID" in exposed
