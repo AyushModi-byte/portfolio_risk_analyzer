@@ -27,6 +27,14 @@ npm run dev                # http://localhost:5173
 
 The backend must allow the frontend's origin in `ALLOWED_ORIGINS` (default `http://localhost:5173`). Checks: `npm run lint && npm run test && npm run build`. Charts use the small Plotly basic bundle (bar and area), loaded on demand; the correlation heatmap is an accessible HTML table, so the larger heatmap bundle is not needed. For Vercel, set `VITE_API_URL` in the project settings.
 
+## Shortcuts, Docker and CI
+
+`make setup`, `make test`, `make lint`, `make run-backend` and `make run-frontend` wrap the commands above (the venv lives in `backend/.venv`). `make docker-build` and `make docker-run` build and run the backend image, then `http://localhost:7860/health` answers.
+
+Optional git hooks: `pip install pre-commit && pre-commit install` runs ruff and basic file checks on each commit.
+
+GitHub Actions: `ci.yml` (lint, tests, coverage gate, offline eval, frontend checks) runs on every push and pull request; `deploy-backend.yml` publishes `backend/` to the Hugging Face Space after CI passes on `main`; `keepalive.yml` pings `/health` every 10 minutes. First-time setup is in `docs/SETUP_AND_DEPLOYMENT.md`.
+
 ## AI features
 
 The AI features need a Google AI Studio key in `GEMINI_API_KEY`. Without one the dashboard still works: insights fall back to template text built in code, and chat and column-mapping suggestions report "AI unavailable".
@@ -34,3 +42,5 @@ The AI features need a Google AI Studio key in `GEMINI_API_KEY`. Without one the
 **Model.** `GEMINI_MODEL` selects the model. When it is empty the backend uses `gemini-3.6-flash`, a stable Flash model that Google's pricing page lists as free of charge on the standard tier (checked against ai.google.dev). The newer `gemini-3.8-flash` is also listed as free, but it returned 504 timeouts in testing, so it is not the default. Free-tier quotas are small; when Google rate limits a call, chat returns HTTP 429 and insights fall back to templates.
 
 **Evals.** `python scripts/run_agent_eval.py --fake-llm` runs the 27 questions in `backend/tests/evals/questions.yaml` with a scripted model (offline, used in CI) and prints tool-selection accuracy, numeric accuracy, the count of numbers not found in tool outputs and the count of advice violations. Run it without `--fake-llm` and with a key set to test the real model manually.
+
+**Tracing.** Optional Langfuse tracing is off by default; see `docs/ARCHITECTURE.md`.

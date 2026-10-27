@@ -43,7 +43,7 @@ Deploy the backend first, then the frontend, then point each at the other.
 
 1. **Hugging Face:** create a new Space with the Docker SDK and a blank template. Under Settings, add secrets GEMINI_API_KEY and ALLOWED_ORIGINS (use http://localhost:5173 for now). Create an access token with write permission.
 2. **GitHub:** under Settings, Secrets and variables, Actions, add secrets HF_TOKEN and HF_SPACE (username/space-name), and a variable BACKEND_URL set to the Space's direct URL (https://username-space-name.hf.space).
-3. **Push to main:** the deploy workflow publishes the backend. Open BACKEND_URL/health and confirm it answers.
+3. **Push to main:** once CI passes, the deploy workflow publishes the backend (comments at the top of `.github/workflows/deploy-backend.yml` repeat the one-time setup). It force-pushes `backend/` to the Space with `SPACE_README.md` as its README, so edit files in this repo, never in the Space. You can also run it by hand from the Actions tab. Open BACKEND_URL/health and confirm it answers.
 4. **Vercel:** import the GitHub repository, set Root Directory to frontend, framework Vite, and add the environment variable VITE_API_URL with the Space URL.
 5. **Close the loop:** set ALLOWED_ORIGINS on the Space to your Vercel URL (keep http://localhost:5173 too, comma-separated) and restart the Space.
 6. **Smoke test:** on the live site, open a sample portfolio and confirm the dashboard, insights and chat all work.
@@ -56,7 +56,8 @@ Deploy the backend first, then the frontend, then point each at the other.
 | GEMINI_MODEL | Backend | Model name; empty uses the default |
 | ALLOWED_ORIGINS | Backend | Comma-separated browser origins allowed by CORS |
 | MAX_UPLOAD_MB, MAX_ROWS | Backend | Upload limits |
-| LANGFUSE_* | Backend (optional) | Agent tracing, off by default |
+| LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST | Backend (optional) | Agent tracing, off by default; also needs the `langfuse` package |
+| GIT_SHA | Backend | Set by the deploy workflow; shown by `/health` |
 | VITE_API_URL | Frontend (Vercel) | Backend base URL |
 | HF_TOKEN, HF_SPACE | GitHub secrets | Deploy to the Space |
 | BACKEND_URL | GitHub variable | Keep-alive pings |

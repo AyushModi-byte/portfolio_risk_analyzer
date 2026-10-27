@@ -50,7 +50,9 @@ The browser talks only to the backend; the agent reads results from the analytic
 - **POST /api/chat** takes `analysis`, `messages` (up to 20, last one from the user, 2000 characters each) and optionally `request`, the analyze request that produced `analysis`; only the what-if tool needs it. It returns `answer`, `tool_calls` (name, args, output), `verified` and the disclaimer. Without a key it returns 503 `ai_unavailable`; a provider rate limit returns 429 `ai_rate_limited`; other model failures return 502 `ai_error`.
 - **POST /api/mapping/suggest** takes `headers` and `sample_rows` (the parse response returns `sample_rows` when it asks for mapping) and returns a validated `mapping` or `null`. Same 503 behaviour without a key.
 - **AI abuse protection:** when a `GEMINI_API_KEY` is set, `/api/insights`, `/api/chat` and `/api/mapping/suggest` share a per-client limit of `AI_REQUESTS_PER_MINUTE` (default 6) and `AI_REQUESTS_PER_DAY` (default 100), and every real model call also spends from a global `AI_MODEL_CALLS_PER_DAY` budget (default 500). Over a client limit the response is 429 `rate_limited` with a `Retry-After` header; when the global budget is spent chat returns 429 `ai_rate_limited` and insights fall back to templates. The client address is the entry that the nearest trusted proxy appended to `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`, default 1 for Hugging Face Spaces; set 0 when exposed directly), so a client cannot dodge the limit by inventing addresses. Counters are in memory and reset on restart. Posted analyses are capped at 500 holdings, 3000 drawdown points and 50 warnings.
-- **Logging:** one JSON line per request (request id, method, path, status, duration). File contents, symbols and names are never logged; unexpected errors log only the exception type.
+- **Logging:** one JSON line per request with `request_id`, `method`, `route` (the route template, for example `/api/analyze`), `path`, `status` and `duration_ms`. File contents, symbols and names are never logged; unexpected errors log only the exception type.
+- **Tracing (optional):** with `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` set (and `LANGFUSE_HOST` for self-hosted or EU/US choice), each AI flow (`insight_writer`, `qa_agent`, `mapping_assistant`) is traced to Langfuse through `app/agent/tracing.py`. It is off by default, the `langfuse` package is not in `requirements.txt`, and a missing package or bad keys only log one warning: no code path requires it. Traces include prompts and answers, which contain holding names, so enable it only where that is acceptable.
+- **Deployment:** `backend/Dockerfile` (Python 3.11 slim, non-root uid 1000, port 7860) is built by Hugging Face Spaces. `GIT_SHA` is stamped into the image at deploy time and reported by `/health`. Runtime configuration (keys, `ALLOWED_ORIGINS`) is set on the Space, not in the repo.
 
 ## Data models
 
@@ -94,17 +96,18 @@ portfolio-risk-analyzer/
       routers/      health.py  parse.py  analyze.py  chat.py
       services/     parsers.py  tickers.py  prices.py  fx.py  sectors.py
       analytics/    returns.py  risk.py  drawdown.py  concentration.py  engine.py
-      agent/        graph.py  tools.py  prompts.py  llm.py  models.py  templates.py  validation.py
+      agent/        graph.py  tools.py  prompts.py  llm.py  models.py  templates.py  validation.py  tracing.py
     data/
       sample_portfolios/   (india, us, mixed)
       price_snapshot/      (offline prices for tests and demo)
       sector_map.csv
     tests/
       unit/  agent/  fixtures/  test_validation.py  test_api.py  evals/questions.yaml
-    requirements.txt  requirements-dev.txt  Dockerfile
+    requirements.txt  requirements-dev.txt  Dockerfile  .dockerignore  SPACE_README.md
   frontend/               (Vite, React, TypeScript)
   scripts/
     snapshot_prices.py  validate_metrics.py  run_agent_eval.py
   .github/workflows/
     ci.yml  deploy-backend.yml  keepalive.yml
+  Makefile  .pre-commit-config.yaml
 ```
