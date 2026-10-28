@@ -51,7 +51,7 @@ Sector exposure is the sum of w_i over the holdings in each sector.
 
 **Risk contribution** (used by the chat agent), with Sigma the covariance matrix built from each holding's annualized volatility and the correlation matrix, at current weights:
 
-$$RC_i = rac{w_i\,(\Sigma w)_i}{w^{	op}\Sigma w}, \qquad \sum_i RC_i = 1$$
+$$RC_i = \frac{w_i\,(\Sigma w)_i}{w^{\top}\Sigma w}, \qquad \sum_i RC_i = 1$$
 
 It is a share of variance at today's weights and can differ slightly from the realized buy-and-hold volatility above.
 
