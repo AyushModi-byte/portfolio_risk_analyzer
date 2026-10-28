@@ -15,7 +15,7 @@ import httpx
 from app.agent.llm import LLMError, LLMRateLimitError, LLMResponse, Message, ToolCall, ToolSpec
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 MAX_RATE_LIMIT_RETRIES = 3
 MAX_WAIT_SECONDS = 90.0
 

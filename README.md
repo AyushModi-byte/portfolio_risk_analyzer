@@ -99,9 +99,10 @@ The comparison feeds the same return series to both sides, so it checks the form
 | Run | Tool selection | Numeric accuracy | Numbers not in tool outputs | Advice violations | Answers blocked by validation |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `--fake-llm` (scripted answers, used in CI) | 100.0% | 100.0% | 0 | 0 | 2 |
-| Gemini (`gemini-3.6-flash`) | not measured | not measured | not measured | not measured | not measured |
+| Groq `openai/gpt-oss-120b`, 26 questions (eval only) | 96.2% (25/26) | 100.0% | 0 | 0 | 0 |
+| Gemini (`gemini-3.6-flash`), the model the deployed app uses | not measured | not measured | not measured | not measured | not measured |
 
-The scripted run checks the pipeline and the validators; it cannot show how good the model is. The Gemini row is empty on purpose: when I tried the real-model run on 2026-10-28, only 4 of the 26 questions got an answer before the free-tier quota rate-limited the rest (even with a 30 second pause between questions), so there is no valid score to report. To measure it yourself, run `python scripts/run_agent_eval.py --pause 30` with a `GEMINI_API_KEY` set and a fresh quota; unanswered questions are counted as errors, not as passes.
+The scripted run checks the pipeline and the validators; it cannot show how good a model is. The Groq row is a real-model run on 2026-10-28 through `python scripts/run_agent_eval.py --provider groq --pause 3`: all 26 questions were answered with no errors, and the per-question results are in `docs/eval_groq_gpt-oss-120b.json`. The Groq adapter (`scripts/groq_llm.py`) is used by the eval only; the deployed app does not import it and keeps using Gemini. The one tool-selection miss was `concentration`: the model called `get_top_holdings` instead of `get_risk_metrics`, though its answer used a number that was in the tool output. The Gemini row is empty on purpose: the free-tier quota rate-limited that attempt after 4 of 26 questions, so there is no valid Gemini score. This is the score of a different model than the one that is deployed, and the sample is small (26 questions, one portfolio). Unanswered questions are counted as errors, not as passes.
 
 ## Performance
 
