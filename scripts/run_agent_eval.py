@@ -12,6 +12,7 @@ import argparse
 import json
 import sys
 import tempfile
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -211,9 +212,12 @@ def run_eval(
     analysis: AnalysisResult,
     request: AnalyzeRequest,
     llm_for: Any,
+    pause: float = 0.0,
 ) -> Report:
     report = Report()
-    for q in questions:
+    for index, q in enumerate(questions):
+        if index and pause:
+            time.sleep(pause)  # stay under a provider's requests-per-minute limit
         ctx = ToolContext(analysis=analysis, request=request)
         llm: LLM = llm_for(q)
         result: ChatResult | None = None
@@ -260,6 +264,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--questions", type=Path, default=QUESTIONS_PATH)
     ap.add_argument("--json", type=Path, help="also write the full results here")
     ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument(
+        "--pause",
+        type=float,
+        default=0.0,
+        help="seconds to wait between questions (real model: free tiers rate limit quickly)",
+    )
     args = ap.parse_args(argv)
 
     questions = load_questions(args.questions, real_llm=not args.fake_llm)
@@ -272,7 +282,7 @@ def main(argv: list[str] | None = None) -> int:
             print("GEMINI_API_KEY is not set; use --fake-llm or set the key.", file=sys.stderr)
             return 2
         llm_for = lambda q: llm  # noqa: E731
-    report = run_eval(questions, analysis, request, llm_for)
+    report = run_eval(questions, analysis, request, llm_for, args.pause)
     print_report(report, "fake LLM" if args.fake_llm else "real LLM", args.verbose)
     if args.json:
         args.json.write_text(
