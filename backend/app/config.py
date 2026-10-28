@@ -36,7 +36,6 @@ class Settings(BaseSettings):
     trading_days: int = 252
     risk_free_inr: float = 0.07
     risk_free_usd: float = 0.04
-    default_lookback_years: int = 2
     min_history_days: int = 60
     max_ffill_days: int = 5
 
