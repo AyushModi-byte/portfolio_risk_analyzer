@@ -40,8 +40,8 @@ Work top to bottom before sharing the project (README, LinkedIn, a job applicati
 ## 5. README is finished
 
 - [ ] The live demo and API health links at the top of `README.md` point to the real URLs (search for `YOUR-`).
-- [ ] Screenshots are saved in `docs/screenshots/` with the file names the README uses, and they render on GitHub.
-- [ ] A demo GIF is saved as `docs/screenshots/demo.gif` and shows: pick a sample, scroll the dashboard, ask the chat a question.
+- [x] Screenshots are saved in `docs/screenshots/` with the file names the README uses, and they render on GitHub.
+- [x] A demo GIF is saved as `docs/screenshots/demo.gif` and shows: pick a sample, scroll the dashboard, ask the chat a question.
 - [ ] The README timing and eval tables still match a fresh run of the commands listed under them (re-run if you changed code since).
 - [ ] `docs/RESUME.md`: every `[X]` placeholder is filled with something true, and nothing is invented.
 - [ ] Preview `README.md` on GitHub and check that the Mermaid diagram renders.

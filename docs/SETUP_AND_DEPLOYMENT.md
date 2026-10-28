@@ -69,7 +69,7 @@ Deploy the backend first, then the frontend, then point each at the other.
 | CORS error in the browser console | ALLOWED_ORIGINS lacks the exact Vercel origin | Add it with no trailing slash, then wait for Render to restart the service |
 | First request slow or timing out | Backend was asleep | Wait and retry; confirm the keep-alive workflow is running |
 | Empty prices or unresolved symbols | Wrong suffix or yfinance rate limit | Use .NS or .BO suffixes and retry; the app falls back to the snapshot with a warning |
-| Gemini quota or 429 errors | Free-tier limits | Insights fall back to template text; wait, or change GEMINI_MODEL |
+| Gemini quota or 429 errors | Free-tier limits. On 2026-10-28 `gemini-3.6-flash` was limited to 20 requests per day (Google error: "Generate content requests per day limit exceeded on Free Tier"); chat showed "Please wait a moment and try again" until it reset | Insights fall back to template text. Set `GEMINI_MODEL` on Render to a model with free quota left (`gemini-3.5-flash-lite` answered a tool question correctly in a local test; its quota is not measured), or wait for the reset |
 | Render build or deploy fails | Wrong port, or CI failed so no deploy started | Check `PORT=7860` in `render.yaml`, that the CI run for the commit is green, and the deploy log in Render |
 | Everyone gets 429 `rate_limited` | `TRUSTED_PROXY_HOPS` does not match the proxies in front of the app | Render's docs do not state the hop count; see "Verify the rate limit key" below |
 | Service suspended mid-month | The 750 free instance hours were used up | Keep-alive uses about 744 hours in a 31-day month; remove other free services or pause keep-alive |

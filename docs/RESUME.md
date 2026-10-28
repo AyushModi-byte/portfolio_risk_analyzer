@@ -4,7 +4,7 @@ Every number below comes from a command in this repository. The command is in th
 
 ## Short project description
 
-**Portfolio Risk Analyzer** ([GitHub](https://github.com/AyushModi-byte/portfolio_risk_analyzer) | [live demo]([LIVE_DEMO_URL]))
+**Portfolio Risk Analyzer** ([GitHub](https://github.com/AyushModi-byte/portfolio_risk_analyzer) | [live demo](https://portfolio-risk-analyzer-two.vercel.app/))
 
 A full-stack web app that turns a broker holdings file (CSV, Excel or JSON) into portfolio risk, sector exposure and drawdown for Indian and US stocks. A FastAPI backend computes every metric in code and validates it against quantstats, and a LangGraph agent writes insights and answers questions using eight fixed analytics tools. Each number in the AI text is checked against the computed results, and nothing is executed. The React and TypeScript frontend is deployed on Vercel, and the Dockerized backend on Render, with GitHub Actions CI. Built over [X] weeks as a solo project.
 

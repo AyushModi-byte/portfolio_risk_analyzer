@@ -1,26 +1,67 @@
+<div align="center">
+
 # Portfolio Risk Analyzer
 
-Upload a broker holdings file (CSV, Excel or JSON) and get portfolio risk, sector exposure and drawdown, with AI-written insights that can only quote numbers the code computed.
+**Upload your broker holdings file and see the risk you are actually carrying, in seconds.**
+Volatility, drawdown, sector exposure and concentration for Indian and US stocks, with AI-written
+insights that are only allowed to quote numbers the code computed.
+
+[![CI](https://github.com/AyushModi-byte/portfolio_risk_analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/AyushModi-byte/portfolio_risk_analyzer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.11%2B-3776AB)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6)
+
+**[Live demo](https://portfolio-risk-analyzer-two.vercel.app/)** · **[API health](https://portfolio-risk-api-3vh1.onrender.com/health)** · **[Metric formulas](docs/METRICS.md)** · **[Architecture](docs/ARCHITECTURE.md)**
+
+<img src="docs/screenshots/demo.gif" alt="Demo: upload a holdings file, review the risk dashboard, then ask the chat three questions" width="860">
+
+</div>
 
 > **Analytics only, not financial advice.** The app describes how a portfolio would have behaved in the past. It never recommends buying or selling.
 
-## Live demo
+The hosted API runs on a free Render service that, according to Render's documentation, sleeps after 15 idle minutes and takes about a minute to wake (I have not timed this), so the first request after a pause can be slow. The app shows a "Waking up the server" banner while that happens.
 
-| | Link |
+## Why it matters
+
+Broker apps are good at showing what you own and what you have earned. They are much less helpful at showing **how your money is actually exposed**: how much of the swings come from one stock, how much sits in one sector, how bad the worst fall was, and whether a "diversified" list moves as one. Spreadsheets and paid tools can answer this, but not in the ten seconds before you decide whether to worry.
+
+Here is what the app shows for the demo portfolio in [`docs/sample_uploads/demo_portfolio.csv`](docs/sample_uploads/demo_portfolio.csv) (12 stocks, 9 Indian and 3 US):
+
+| What you would otherwise miss | What the app reports |
 | --- | --- |
-| App (Vercel) | https://YOUR-APP.vercel.app |
-| API health (Render) | https://YOUR-API.onrender.com/health |
+| One stock carries far more risk than its size suggests | MSFT is **23.2%** of the portfolio's value but **33.8%** of its risk |
+| A "12-stock" portfolio behaves like fewer | The top 5 holdings are **76.0%** of the value, which behaves like about **6.5** equal-sized holdings |
+| One sector dominates | Technology is **52.3%** of the portfolio |
+| How bad it got | A worst fall of **-16.2%** from a peak over the past 2.1 years, with a drawdown chart |
 
-The API runs on a free Render service that, according to Render's documentation, sleeps after 15 idle minutes and takes about a minute to wake (I have not timed this), so the first request after a pause can be slow. The app shows a "Waking up the server" banner while that happens.
+These are historical figures for an illustrative portfolio, not a forecast and not advice. The point is that a retail investor sees them without opening a spreadsheet, then asks follow-up questions in plain English and gets answers that trace back to a computed number.
+
+> **Honest scope.** This is a solo project with no real user base yet, so there are no usage or impact numbers here. The claims in this README are about what the software does and how it was verified.
+
+## At a glance
+
+| Area | Evidence |
+| --- | --- |
+| Trustworthy numbers | Volatility, Sharpe, max drawdown, beta and VaR match quantstats and numpy with **0 relative error** on 3 sample portfolios |
+| AI that cannot invent figures | **8 fixed tools**, no code execution, and a validator that rejects any number not in the computed results and any buy or sell advice (**0** unsupported numbers and **0** advice violations in the 26-question eval) |
+| Fast | **6.7 s** for the India sample with empty caches (live Yahoo Finance), **0.03 s** with warm caches |
+| Tested | **338** backend tests at 98% coverage and **78** frontend tests, run by CI on every push |
+| Private by design | Uploads are processed in memory and are never stored or logged |
 
 ## Screenshots
 
-_Screenshots are added by hand before release (see `docs/RELEASE_CHECKLIST.md`). Planned files in `docs/screenshots/`:_
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Risk dashboard for the demo portfolio: KPIs, risk cards, AI insights, holdings, sector exposure, drawdown and correlation heatmap" width="760">
+</p>
 
-- `dashboard.png`: KPIs, risk cards and charts for the mixed sample portfolio
-- `mapping.png`: the column-mapping dialog
-- `chat.png`: the chat drawer with the tools it used
-- `demo.gif`: pick a sample, scroll the dashboard, ask a question
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/mapping.png" alt="Column-mapping dialog for a file with unfamiliar headers"><br><sub><b>Unknown file layout?</b> A mapping dialog lets you match columns, with an optional AI suggestion.</sub></td>
+    <td width="50%" valign="top"><img src="docs/screenshots/chat.png" alt="Chat drawer answering a risk question and showing the tool it used"><br><sub><b>Ask in plain English.</b> Every answer lists the analytics tools it called.</sub></td>
+  </tr>
+</table>
+
+<sub>The GIF and screenshots show the real UI, recorded against a local run of this repository's frontend and backend with the demo file above and `gemini-3.5-flash-lite`, because the hosted demo's free Gemini quota was used up that day (see Limitations). The market data is live Yahoo Finance data fetched on 2026-10-28.</sub>
 
 ## Features
 
@@ -54,6 +95,41 @@ flowchart LR
 ```
 
 The browser only talks to the backend. The backend keeps no state and writes no uploads to disk. The agent reads results from the analytics engine and never computes them.
+
+### How a chat answer is produced and checked
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as LangGraph agent
+  participant T as Fixed analytics tools
+  participant L as Gemini
+  participant V as Validator
+  U->>A: Which holding adds the most risk?
+  A->>L: Question and the list of 8 tools
+  L-->>A: Call risk_contribution
+  A->>T: Run the tool (no code is executed)
+  T-->>A: Numbers computed by the analytics engine
+  A->>L: Tool output
+  L-->>A: Draft answer
+  A->>V: Is every number in the tool output? Any buy or sell advice?
+  alt checks pass
+    V-->>U: Answer, plus the tools it used
+  else a check fails
+    V-->>A: Repair once, then fall back to a safe message
+  end
+```
+
+### Trust by design
+
+| Rule | How it is enforced |
+| --- | --- |
+| The LLM never computes numbers | All metrics come from `backend/app/analytics`; the model only phrases results it is given |
+| Every number in AI text is real | The validator compares each number in an answer with the analysis and tool outputs, within rounding |
+| No arbitrary code execution | The agent can call only the 8 tools in `backend/app/agent/tools.py` |
+| No buy or sell advice | Advice requests are refused, advice-like answers are rejected, and every analysis carries the disclaimer |
+| Uploads stay private | Files are processed in memory, never written to disk or logs |
+| Untrusted input | File contents and holding names are treated as prompt-injection risks; the eval includes injection cases |
 
 ## Tech stack
 
@@ -122,7 +198,7 @@ From the bundled snapshot with no network (`--offline`, [`docs/PERFORMANCE_OFFLI
 - **Historical buy-and-hold model.** Metrics describe how today's quantities would have behaved over the window, with no rebalancing. They are not what the user actually earned and they do not predict anything.
 - **yfinance reliability.** Yahoo Finance is an unofficial source and can rate-limit, change symbols or return gaps. The app then uses a bundled snapshot of past prices and says so in a warning, so numbers may be out of date.
 - **Free-tier cold starts.** The free Render service sleeps when idle and takes about a minute to wake, per Render's documentation. A keep-alive workflow pings it every 10 minutes, but GitHub may delay scheduled runs.
-- **Gemini quotas.** The free tier has small limits. When Google rate-limits a call, chat returns a friendly error and insights fall back to template text. The app also applies its own per-client and daily limits.
+- **Gemini quotas.** The free tier has small limits. On 2026-10-28 Google rejected calls to `gemini-3.6-flash` with "limit: 20 ... Generate content requests per day limit exceeded on Free Tier", so the hosted chat returned an error until the quota reset. In a quick local test `gemini-3.5-flash-lite` answered a tool question correctly (its quota was not measured), and setting `GEMINI_MODEL` on Render switches models without a code change. When Google rate-limits a call, chat returns a friendly error and insights fall back to template text. The app also applies its own per-client and daily limits.
 - **Ticker coverage.** Only NSE, BSE and US symbols are resolved, and sector data comes from yfinance.
 - **No persistence.** Uploads and results exist only in memory, by design.
 
