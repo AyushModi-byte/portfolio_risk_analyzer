@@ -1,4 +1,4 @@
-# Backend image for Hugging Face Spaces (Docker SDK) and local use.
+# Backend image for Render (see render.yaml) and local use.
 # Build context is backend/:  docker build -t portfolio-risk-backend backend
 FROM python:3.11-slim
 
@@ -7,11 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# The deploy workflow replaces this default with the commit being deployed; /health reports it.
-ARG GIT_SHA=unknown
-ENV GIT_SHA=${GIT_SHA}
-
-# Spaces runs containers as uid 1000, so use the same id.
+# Non-root user; uid 1000 is also what most container hosts expect.
 RUN useradd --create-home --uid 1000 app
 WORKDIR /app
 

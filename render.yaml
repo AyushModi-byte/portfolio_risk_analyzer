@@ -1,0 +1,35 @@
+# Render Blueprint: describes the backend service so Render can create and update it.
+#
+# FIRST-TIME SETUP (once; the full checklist is in docs/SETUP_AND_DEPLOYMENT.md)
+#   1. Render dashboard > New > Blueprint > connect this GitHub repository.
+#   2. Render reads this file and asks for the two values marked "sync: false":
+#        GEMINI_API_KEY   your Google AI Studio key (leave empty to run without AI)
+#        ALLOWED_ORIGINS  your Vercel URL plus http://localhost:5173, comma separated
+#      (use http://localhost:5173 for now; add the Vercel URL once you have it).
+#   3. After the first deploy, open https://<service>.onrender.com/health.
+#
+# DEPLOYS: "checksPass" means Render deploys a new commit on main only after its GitHub checks
+# (the CI workflow) pass, so no deploy token is needed in GitHub. Render builds backend/Dockerfile
+# itself. Runtime settings live in the Render dashboard, never in this repo.
+#
+# FREE PLAN: 512 MB RAM, spins down after 15 minutes without traffic and takes about a minute
+# to wake. The frontend shows a "waking up" banner; .github/workflows/keepalive.yml pings /health
+# every 10 minutes to keep it awake.
+services:
+  - type: web
+    name: portfolio-risk-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT # the port the Dockerfile's uvicorn listens on
+        value: "7860"
+      - key: TRUSTED_PROXY_HOPS # proxies in front of the app, used for per-client rate limits
+        value: "1"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

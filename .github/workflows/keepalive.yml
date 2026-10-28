@@ -1,6 +1,9 @@
-# Pings the deployed backend so the free Hugging Face Space does not go to sleep.
+# Pings the deployed backend so the free Render service (which spins down after 15 idle
+# minutes) stays awake.
 # Setup: GitHub > Settings > Secrets and variables > Actions > Variables > BACKEND_URL
-#        = the Space's direct URL, for example https://username-space-name.hf.space
+#        = the Render service URL, for example https://portfolio-risk-api.onrender.com
+# Note: an always-awake service uses about 744 of Render's 750 free instance hours in a
+# 31-day month, and the hours are shared by every free service in the workspace.
 # A failed run (red cross in the Actions tab, plus GitHub's failure email) means /health did
 # not return 200. GitHub may delay scheduled runs by several minutes; that is expected.
 name: Keep alive
@@ -26,7 +29,7 @@ jobs:
             exit 1
           fi
           url="${BACKEND_URL%/}/health"
-          # A sleeping Space can take a minute to wake, so allow a long first response.
+          # A sleeping service can take a minute to wake, so allow a long first response.
           status=$(curl --silent --show-error --location --max-time 90 \
             --retry 2 --retry-delay 15 --retry-all-errors \
             --output response.json --write-out '%{http_code}' "$url") || status=000

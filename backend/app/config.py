@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -17,7 +18,8 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:5173"
     max_upload_mb: int = 5
     max_rows: int = 500
-    git_sha: str = "unknown"
+    # Deploy commit shown by /health. Render sets RENDER_GIT_COMMIT itself.
+    git_sha: str = Field("unknown", validation_alias=AliasChoices("GIT_SHA", "RENDER_GIT_COMMIT"))
 
     # Optional Langfuse tracing for the agent; off unless both keys are set (app/agent/tracing.py).
     langfuse_public_key: str = ""

@@ -9,6 +9,7 @@ endif
 PY := $(VENV_BIN)/python
 IMAGE ?= portfolio-risk-backend
 GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+PORT ?= 7860
 
 .PHONY: setup test lint run-backend run-frontend docker-build docker-run
 
@@ -33,8 +34,8 @@ run-frontend: ## Vite dev server on http://localhost:5173
 	cd frontend && npm run dev
 
 docker-build: ## Build the backend image
-	docker build --build-arg GIT_SHA=$(GIT_SHA) -t $(IMAGE) backend
+	docker build -t $(IMAGE) backend
 
 docker-run: ## Run the image on http://localhost:7860 (reads .env for keys if it exists)
-	docker run --rm -p 7860:7860 $(if $(wildcard .env),--env-file .env) \
-		-e ALLOWED_ORIGINS=http://localhost:5173 $(IMAGE)
+	docker run --rm -p $(PORT):7860 $(if $(wildcard .env),--env-file .env) \
+		-e ALLOWED_ORIGINS=http://localhost:5173 -e GIT_SHA=$(GIT_SHA) $(IMAGE)

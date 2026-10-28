@@ -430,3 +430,13 @@ def test_price_series_helper_is_unused_when_snapshot_missing() -> None:
     # sanity: the snapshot directory used by the API tests is the bundled one
     assert (settings.snapshot_dir / prices.filename("TCS.NS")).exists()
     assert isinstance(pd.Series(dtype=float), pd.Series)
+
+
+def test_git_sha_comes_from_env_or_render(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.delenv("GIT_SHA", raising=False)
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "abc123")
+    assert Settings().git_sha == "abc123"
+    monkeypatch.setenv("GIT_SHA", "explicit")
+    assert Settings().git_sha == "explicit"
