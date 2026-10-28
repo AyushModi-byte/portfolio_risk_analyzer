@@ -2,6 +2,7 @@
 
     python scripts/run_agent_eval.py --fake-llm   # scripted model, offline, for CI
     python scripts/run_agent_eval.py              # real Gemini (needs GEMINI_API_KEY), manual
+    python scripts/run_agent_eval.py --provider groq [--model ID]   # eval only (GROQ_API_KEY)
 
 Reports tool-selection accuracy, numeric accuracy, the count of numbers in answers that are not in
 the tool outputs, and the count of answers that read as advice. The portfolio is the mixed sample
@@ -270,20 +271,39 @@ def main(argv: list[str] | None = None) -> int:
         default=0.0,
         help="seconds to wait between questions (real model: free tiers rate limit quickly)",
     )
+    ap.add_argument(
+        "--provider",
+        choices=["gemini", "groq"],
+        default="gemini",
+        help="real model to use; groq is for evals only and needs GROQ_API_KEY (env or .env)",
+    )
+    ap.add_argument("--model", help="model id for --provider groq")
     args = ap.parse_args(argv)
 
     questions = load_questions(args.questions, real_llm=not args.fake_llm)
     analysis, request = build_context()
+    mode = "fake LLM"
     if args.fake_llm:
         llm_for = fake_llm_for
+    elif args.provider == "groq":
+        from groq_llm import DEFAULT_GROQ_MODEL, GroqLLM, load_groq_key
+
+        key = load_groq_key(ROOT / ".env")
+        if not key:
+            print("GROQ_API_KEY is not set (environment or .env).", file=sys.stderr)
+            return 2
+        groq = GroqLLM(key, args.model or DEFAULT_GROQ_MODEL)
+        mode = f"real LLM: groq {groq.model}"
+        llm_for = lambda q: groq  # noqa: E731
     else:
         llm = get_llm()
         if llm is None:
             print("GEMINI_API_KEY is not set; use --fake-llm or set the key.", file=sys.stderr)
             return 2
+        mode = "real LLM: gemini"
         llm_for = lambda q: llm  # noqa: E731
     report = run_eval(questions, analysis, request, llm_for, args.pause)
-    print_report(report, "fake LLM" if args.fake_llm else "real LLM", args.verbose)
+    print_report(report, mode, args.verbose)
     if args.json:
         args.json.write_text(
             json.dumps([asdict(r) for r in report.results], indent=2), encoding="utf-8"
