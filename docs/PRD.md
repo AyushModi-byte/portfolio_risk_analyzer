@@ -11,7 +11,7 @@ Broker apps show profit and loss per stock but not portfolio-level risk: volatil
 1. Upload CSV, Excel or JSON, or pick a sample portfolio, and get a full dashboard.
 2. Metrics match an independent library (quantstats) and hand-calculated fixtures within a stated tolerance.
 3. The AI explains results but never calculates or invents numbers.
-4. Runs end to end on free hosting: Vercel (frontend) and Hugging Face Spaces (backend).
+4. Runs end to end on free hosting: Vercel (frontend) and Render (backend).
 5. Portfolio-grade engineering: tests, CI/CD, an agent eval suite and structured logs.
 
 ## Non-goals

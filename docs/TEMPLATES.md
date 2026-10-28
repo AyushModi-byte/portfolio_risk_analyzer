@@ -42,4 +42,4 @@ Replace each [X] or [N] with a number from your own validation and test output. 
 - Built a full-stack portfolio risk analyzer (FastAPI, LangGraph, React) that turns a broker holdings file into volatility, beta, Sharpe, VaR, drawdown and sector exposure for Indian and US stocks.
 - Validated every metric against quantstats and hand-calculated fixtures, with a maximum relative error of [X]% across [N] portfolios.
 - Designed an LLM agent limited to [N] fixed analytics tools; an eval of [N] questions found [X] numbers outside tool outputs.
-- Shipped with Docker, GitHub Actions CI/CD ([N] automated tests, [X]% coverage) and free hosting on Hugging Face Spaces and Vercel.
+- Shipped with Docker, GitHub Actions CI/CD ([N] automated tests, [X]% coverage) and free hosting on Render and Vercel.

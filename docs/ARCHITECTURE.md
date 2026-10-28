@@ -1,11 +1,11 @@
 # Architecture and API
 
-One repository, two deployables: a React app on Vercel calls a FastAPI service on Hugging Face Spaces. The analytics engine is plain Python; the LLM only helps with column mapping, insight wording and Q&A through fixed tools.
+One repository, two deployables: a React app on Vercel calls a FastAPI service on Render. The analytics engine is plain Python; the LLM only helps with column mapping, insight wording and Q&A through fixed tools.
 
 ```mermaid
 flowchart LR
   A["React app (Vercel)"] -->|HTTPS| B
-  subgraph B["FastAPI backend (Hugging Face Spaces)"]
+  subgraph B["FastAPI backend (Render)"]
     P["Parse, resolve, fetch prices"] --> E["Analytics engine"]
     G["LangGraph agent (fixed tools)"] -->|tool calls| E
   end
@@ -25,7 +25,7 @@ The browser talks only to the backend; the agent reads results from the analytic
 | Agent | LangGraph with Gemini free tier | Graph of small, testable steps |
 | Validation | quantstats, pytest | Independent reference for metrics |
 | MLOps | Docker, GitHub Actions, optional Langfuse | CI/CD, tracing, repeatable deploys |
-| Hosting | Hugging Face Spaces (Docker), Vercel | Both free tiers |
+| Hosting | Render (Docker web service), Vercel | Both free tiers; Hugging Face Docker Spaces need a paid plan |
 
 ## API endpoints
 
@@ -49,10 +49,10 @@ The browser talks only to the backend; the agent reads results from the analytic
 - **POST /api/insights** takes the analysis result and returns 4 to 6 insights, each with the metric keys it cites, `source` (`llm` or `template`) and the disclaimer. Every number in model text is checked against the cited metrics within rounding; a failed check regenerates once, then template insights built in code are returned. With no `GEMINI_API_KEY` the template insights are returned directly.
 - **POST /api/chat** takes `analysis`, `messages` (up to 20, last one from the user, 2000 characters each) and optionally `request`, the analyze request that produced `analysis`; only the what-if tool needs it. It returns `answer`, `tool_calls` (name, args, output), `verified` and the disclaimer. Without a key it returns 503 `ai_unavailable`; a provider rate limit returns 429 `ai_rate_limited`; other model failures return 502 `ai_error`.
 - **POST /api/mapping/suggest** takes `headers` and `sample_rows` (the parse response returns `sample_rows` when it asks for mapping) and returns a validated `mapping` or `null`. Same 503 behaviour without a key.
-- **AI abuse protection:** when a `GEMINI_API_KEY` is set, `/api/insights`, `/api/chat` and `/api/mapping/suggest` share a per-client limit of `AI_REQUESTS_PER_MINUTE` (default 6) and `AI_REQUESTS_PER_DAY` (default 100), and every real model call also spends from a global `AI_MODEL_CALLS_PER_DAY` budget (default 500). Over a client limit the response is 429 `rate_limited` with a `Retry-After` header; when the global budget is spent chat returns 429 `ai_rate_limited` and insights fall back to templates. The client address is the entry that the nearest trusted proxy appended to `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`, default 1 for Hugging Face Spaces; set 0 when exposed directly), so a client cannot dodge the limit by inventing addresses. Counters are in memory and reset on restart. Posted analyses are capped at 500 holdings, 3000 drawdown points and 50 warnings.
+- **AI abuse protection:** when a `GEMINI_API_KEY` is set, `/api/insights`, `/api/chat` and `/api/mapping/suggest` share a per-client limit of `AI_REQUESTS_PER_MINUTE` (default 6) and `AI_REQUESTS_PER_DAY` (default 100), and every real model call also spends from a global `AI_MODEL_CALLS_PER_DAY` budget (default 500). Over a client limit the response is 429 `rate_limited` with a `Retry-After` header; when the global budget is spent chat returns 429 `ai_rate_limited` and insights fall back to templates. The client address is the entry that the nearest trusted proxy appended to `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`, default 1, as on Render; set 0 when exposed directly), so a client cannot dodge the limit by inventing addresses. Counters are in memory and reset on restart. Posted analyses are capped at 500 holdings, 3000 drawdown points and 50 warnings.
 - **Logging:** one JSON line per request with `request_id`, `method`, `route` (the route template, for example `/api/analyze`), `path`, `status` and `duration_ms`. File contents, symbols and names are never logged; unexpected errors log only the exception type.
 - **Tracing (optional):** with `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` set (and `LANGFUSE_HOST` for self-hosted or EU/US choice), each AI flow (`insight_writer`, `qa_agent`, `mapping_assistant`) is traced to Langfuse through `app/agent/tracing.py`. It is off by default, the `langfuse` package is not in `requirements.txt`, and a missing package or bad keys only log one warning: no code path requires it. Traces include prompts and answers, which contain holding names, so enable it only where that is acceptable.
-- **Deployment:** `backend/Dockerfile` (Python 3.11 slim, non-root uid 1000, port 7860) is built by Hugging Face Spaces. `GIT_SHA` is stamped into the image at deploy time and reported by `/health`. Runtime configuration (keys, `ALLOWED_ORIGINS`) is set on the Space, not in the repo.
+- **Deployment:** `backend/Dockerfile` (Python 3.11 slim, non-root uid 1000, port 7860) is built by Render from `render.yaml`, which deploys a commit on `main` once its GitHub checks pass (`autoDeployTrigger: checksPass`). `/health` reports `GIT_SHA`, or Render's `RENDER_GIT_COMMIT` when that is not set. Runtime configuration (keys, `ALLOWED_ORIGINS`) is set in the Render dashboard, not in the repo. The free plan has 512 MB RAM (the backend used about 140 MB serving the sample portfolios) and sleeps after 15 idle minutes; the keep-alive workflow and the frontend's wake banner cover that.
 
 ## Data models
 
@@ -103,11 +103,11 @@ portfolio-risk-analyzer/
       sector_map.csv
     tests/
       unit/  agent/  fixtures/  test_validation.py  test_api.py  evals/questions.yaml
-    requirements.txt  requirements-dev.txt  Dockerfile  .dockerignore  SPACE_README.md
+    requirements.txt  requirements-dev.txt  Dockerfile  .dockerignore
   frontend/               (Vite, React, TypeScript)
   scripts/
     snapshot_prices.py  validate_metrics.py  run_agent_eval.py
   .github/workflows/
-    ci.yml  deploy-backend.yml  keepalive.yml
-  Makefile  .pre-commit-config.yaml
+    ci.yml  keepalive.yml
+  render.yaml  Makefile  .pre-commit-config.yaml
 ```

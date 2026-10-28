@@ -2,7 +2,7 @@
 
 ## What this is
 Web app: upload broker holdings (CSV, Excel, JSON) and get risk, sector exposure,
-drawdown and AI insights. Backend: FastAPI (Python 3.11+) on Hugging Face Spaces.
+drawdown and AI insights. Backend: FastAPI (Python 3.11+) on Render (free web service, Docker).
 Frontend: React (Vite, TypeScript) on Vercel. Requirements are in docs/PRD.md,
 formulas in docs/METRICS.md.
 

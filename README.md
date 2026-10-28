@@ -33,7 +33,7 @@ The backend must allow the frontend's origin in `ALLOWED_ORIGINS` (default `http
 
 Optional git hooks: `pip install pre-commit && pre-commit install` runs ruff and basic file checks on each commit.
 
-GitHub Actions: `ci.yml` (lint, tests, coverage gate, offline eval, frontend checks) runs on every push and pull request; `deploy-backend.yml` publishes `backend/` to the Hugging Face Space after CI passes on `main`; `keepalive.yml` pings `/health` every 10 minutes. First-time setup is in `docs/SETUP_AND_DEPLOYMENT.md`.
+GitHub Actions: `ci.yml` (lint, tests, coverage gate, offline eval, frontend checks) runs on every push and pull request; `keepalive.yml` pings `/health` every 10 minutes. The backend is deployed by Render from `render.yaml` once CI passes on `main`. First-time setup is in `docs/SETUP_AND_DEPLOYMENT.md`.
 
 ## AI features
 

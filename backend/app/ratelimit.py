@@ -1,6 +1,6 @@
 """Abuse protection for the AI endpoints, which spend the owner's Gemini quota.
 
-Three layers, all in memory (the backend is stateless and single-process on Hugging Face):
+Three layers, all in memory (the backend is stateless and single-process on Render):
 per-client requests per minute, per-client requests per day, and a global daily budget of model
 calls shared by everyone. Limits are read from settings on each check so they can be tuned by
 environment variable without code changes.
